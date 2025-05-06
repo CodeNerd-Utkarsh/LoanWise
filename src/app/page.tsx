@@ -1,5 +1,5 @@
 
-"use client"; // Required for useState and useEffect
+"use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { EmiCalculatorForm } from '@/components/emi-calculator-form';
@@ -10,20 +10,18 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
-// Define the structure for the form data we expect
 interface FormData {
-  principal: number; // Always in base currency (USD)
+  principal: number;
   annualRate: number;
   durationYears: number;
 }
 
-// Define structure for exchange rates
 interface ExchangeRates {
   [key: string]: number;
 }
 
 export default function Home() {
-  const [emi, setEmi] = useState<number | null>(null); // EMI in base currency (USD) - Last calculated
+  const [emi, setEmi] = useState<number | null>(null);
   const [schedule, setSchedule] = useState<AmortizationEntry[]>([]);
   const [currentFormData, setCurrentFormData] = useState<FormData | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('USD');
@@ -31,24 +29,20 @@ export default function Home() {
   const [isLoadingRates, setIsLoadingRates] = useState<boolean>(true);
   const [errorRates, setErrorRates] = useState<string | null>(null);
 
-  // Fetch exchange rates on mount
   useEffect(() => {
     const fetchRates = async () => {
       setIsLoadingRates(true);
       setErrorRates(null);
-      // The API key is expected to be in the environment variable NEXT_PUBLIC_EXCHANGE_RATE_API_KEY
       const apiKey = process.env.NEXT_PUBLIC_EXCHANGE_RATE_API_KEY;
       if (!apiKey) {
-          // Updated error message to guide the user
           setErrorRates("API key for exchange rates is missing. Please create a `.env.local` file in the project root and add the line: NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your_api_key");
           setIsLoadingRates(false);
           return;
       }
       try {
-        // Fetch rates relative to USD using the API key from the environment
         const response = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/latest/USD`);
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})); // Try to parse error response
+          const errorData = await response.json().catch(() => ({}));
            throw new Error(`Failed to fetch exchange rates: ${response.status} ${response.statusText} - ${errorData['error-type'] || 'Unknown API Error'}`);
         }
         const data = await response.json();
@@ -59,7 +53,7 @@ export default function Home() {
       } catch (error) {
         console.error("Error fetching exchange rates:", error);
         setErrorRates(error instanceof Error ? error.message : "An unknown error occurred while fetching exchange rates.");
-        setExchangeRates(null); // Ensure rates are null on error
+        setExchangeRates(null);
       } finally {
         setIsLoadingRates(false);
       }
@@ -68,21 +62,19 @@ export default function Home() {
     fetchRates();
   }, []);
 
-  // Callback function passed to the form on successful submission
+
   const handleCalculation = useCallback((calculatedEmi: number, formData: FormData) => {
-    // calculatedEmi is in base currency (USD)
-    // Generate schedule using base currency values
     const newSchedule = generateAmortizationSchedule(
         formData.principal,
         formData.annualRate,
         formData.durationYears * 12
     );
 
-    setEmi(calculatedEmi); // Store last calculated EMI in base currency
-    setSchedule(newSchedule); // Schedule has base currency values
+    setEmi(calculatedEmi);
+    setSchedule(newSchedule);
     setCurrentFormData(formData);
 
-  }, []); // Empty dependency array ensures the function identity remains stable
+  }, []);
 
 
   return (
@@ -111,7 +103,7 @@ export default function Home() {
           exchangeRates={exchangeRates}
           isLoadingRates={isLoadingRates}
           baseCurrency="USD"
-          displayEmiBase={emi} // Pass the last calculated base EMI for display
+          displayEmiBase={emi}
         />
       <AmortizationTable
           schedule={schedule}

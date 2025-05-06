@@ -12,10 +12,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AmortizationEntry } from "@/lib/emi-calculator";
-import { convertAndFormatCurrency } from "@/lib/currency-utils"; // Use the new util
+import { convertAndFormatCurrency } from "@/lib/currency-utils";
 import { ListOrdered, Info } from 'lucide-react';
 
-// Define structure for exchange rates
 interface ExchangeRates {
   [key: string]: number;
 }
@@ -23,7 +22,7 @@ interface AmortizationTableProps {
   schedule: AmortizationEntry[];
   selectedCurrency: string;
   exchangeRates: ExchangeRates | null;
-  baseCurrency: string; // e.g., 'USD'
+  baseCurrency: string;
 }
 
 export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, baseCurrency }: AmortizationTableProps) {
@@ -33,7 +32,7 @@ export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, b
 
   if (!schedule || schedule.length === 0) {
     return (
-         <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto"> {/* Increased max-width */}
+         <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto">
              <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
              </CardHeader>
@@ -47,7 +46,7 @@ export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, b
   const isRateAvailable = exchangeRates && exchangeRates[selectedCurrency] !== undefined;
 
   return (
-     <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto"> {/* Increased max-width */}
+     <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto">
       <CardHeader>
         <div className="flex justify-between items-center">
              <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
@@ -75,7 +74,6 @@ export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, b
                  {schedule.map((entry) => (
                  <TableRow key={entry.month}>
                      <TableCell className="font-medium">{entry.month}</TableCell>
-                     {/* Format each value using the conversion utility */}
                      <TableCell className="text-right">{formatInSelectedCurrency(entry.principalPayment)}</TableCell>
                      <TableCell className="text-right">{formatInSelectedCurrency(entry.interestPayment)}</TableCell>
                      <TableCell className="text-right">{formatInSelectedCurrency(entry.totalPayment)}</TableCell>

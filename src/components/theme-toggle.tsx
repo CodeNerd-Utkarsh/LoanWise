@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes" // Correct import path
+import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -14,14 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme(); // Remove toggleTheme if not used directly
-  // Ensure the component only renders client-side after hydration
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
 
   if (!mounted) {
-    // Render a placeholder or null during SSR / initial hydration
-    return <div className="w-9 h-9"></div>; // Placeholder to prevent layout shift
+    return <div className="w-9 h-9"></div>;
   }
 
 
@@ -41,7 +39,7 @@ export function ThemeToggle() {
         <DropdownMenuItem onClick={() => setTheme("dark")}>
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}> {/* Corrected onClick handler */}
+        <DropdownMenuItem onClick={() => setTheme("system")}>
            System
         </DropdownMenuItem>
       </DropdownMenuContent>
