@@ -4,7 +4,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { EmiCalculatorForm } from '@/components/emi-calculator-form';
 import { AmortizationTable } from '@/components/amortization-table';
-import { generateAmortizationSchedule, type AmortizationEntry } from '@/lib/emi-calculator';
+import { generateAmortizationSchedule, calculateEMI, type AmortizationEntry } from '@/lib/emi-calculator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,6 +20,12 @@ interface ExchangeRates {
   [key: string]: number;
 }
 
+const DEFAULT_FORM_DATA: FormData = {
+  principal: 100000,
+  annualRate: 7.5,
+  durationYears: 5,
+};
+
 export default function Home() {
   const [emi, setEmi] = useState<number | null>(null);
   const [schedule, setSchedule] = useState<AmortizationEntry[]>([]);
@@ -29,14 +35,14 @@ export default function Home() {
   const [isLoadingRates, setIsLoadingRates] = useState<boolean>(true);
   const [errorRates, setErrorRates] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchRates = async () => {
+  const fetchRates = useCallback(async () => {
       setIsLoadingRates(true);
       setErrorRates(null);
       const apiKey = process.env.NEXT_PUBLIC_EXCHANGE_RATE_API_KEY;
       if (!apiKey) {
-          setErrorRates("API key for exchange rates is missing. Please create a `.env.local` file in the project root and add the line: NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your_api_key");
+          setErrorRates("API key for exchange rates is missing. Please configure it in your environment variables (e.g., .env.local).");
           setIsLoadingRates(false);
+          setExchangeRates({});
           return;
       }
       try {
@@ -57,24 +63,48 @@ export default function Home() {
       } finally {
         setIsLoadingRates(false);
       }
-    };
+    // No dependency array here, it's called explicitly in the main useEffect
+  }, []);
 
+
+  useEffect(() => {
     fetchRates();
-  }, []);
+  }, [fetchRates]);
+
+   const performCalculation = useCallback((formData: FormData) => {
+     const calculatedEmi = calculateEMI(
+       formData.principal,
+       formData.annualRate,
+       formData.durationYears * 12
+     );
+     const newSchedule = generateAmortizationSchedule(
+       formData.principal,
+       formData.annualRate,
+       formData.durationYears * 12
+     );
+
+     if (!isNaN(calculatedEmi) && isFinite(calculatedEmi)) {
+       setEmi(calculatedEmi);
+       setSchedule(newSchedule);
+       setCurrentFormData(formData);
+     } else {
+       setEmi(null);
+       setSchedule([]);
+       setCurrentFormData(null);
+       console.error("Initial or subsequent calculation failed", { formData, calculatedEmi });
+     }
+   }, []);
 
 
-  const handleCalculation = useCallback((calculatedEmi: number, formData: FormData) => {
-    const newSchedule = generateAmortizationSchedule(
-        formData.principal,
-        formData.annualRate,
-        formData.durationYears * 12
-    );
+   useEffect(() => {
+     if (!isLoadingRates && exchangeRates && !currentFormData) {
+       performCalculation(DEFAULT_FORM_DATA);
+     }
+   }, [isLoadingRates, exchangeRates, performCalculation, currentFormData]);
 
-    setEmi(calculatedEmi);
-    setSchedule(newSchedule);
-    setCurrentFormData(formData);
-
-  }, []);
+  const handleFormSubmit = useCallback((calculatedEmi: number, formData: FormData) => {
+     performCalculation(formData);
+  }, [performCalculation]);
 
 
   return (
@@ -82,7 +112,7 @@ export default function Home() {
        {errorRates && (
           <Alert variant="destructive" className="w-full max-w-lg mx-auto">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Configuration Error</AlertTitle>
+            <AlertTitle>API Error</AlertTitle>
             <AlertDescription>{errorRates}</AlertDescription>
           </Alert>
         )}
@@ -97,13 +127,14 @@ export default function Home() {
            </Card>
        )}
       <EmiCalculatorForm
-          onCalculate={handleCalculation}
+          onCalculate={handleFormSubmit}
           selectedCurrency={selectedCurrency}
           setSelectedCurrency={setSelectedCurrency}
           exchangeRates={exchangeRates}
           isLoadingRates={isLoadingRates}
           baseCurrency="USD"
           displayEmiBase={emi}
+          defaultValues={DEFAULT_FORM_DATA}
         />
       <AmortizationTable
           schedule={schedule}
@@ -114,3 +145,4 @@ export default function Home() {
     </div>
   );
 }
+

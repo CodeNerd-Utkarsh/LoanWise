@@ -3,7 +3,6 @@ import React from 'react';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -37,7 +36,7 @@ export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, b
                 <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
              </CardHeader>
              <CardContent>
-                <p className="text-muted-foreground text-center py-8">Enter loan details above to view the amortization schedule.</p>
+                <p className="text-muted-foreground text-center py-8">Enter loan details above or wait for initial calculation.</p>
              </CardContent>
          </Card>
      );

@@ -35,7 +35,7 @@ const MAX_DURATION = 30;
 
 const formSchema = z.object({
   principal: z.coerce.number().positive({ message: "Principal must be positive." }).max(MAX_PRINCIPAL_USD, {message: `Max Principal is ${formatCurrency(MAX_PRINCIPAL_USD, 'USD')}`}),
-  annualRate: z.coerce.number().min(0, { message: "Interest rate cannot be negative." }).max(MAX_RATE, { message: `Max interest rate is ${MAX_RATE}%` }),
+  annualRate: z.coerce.number().min(0.1, { message: "Interest rate must be at least 0.1%." }).max(MAX_RATE, { message: `Max interest rate is ${MAX_RATE}%` }),
   durationYears: z.coerce.number().positive({ message: "Duration must be positive." }).max(MAX_DURATION, { message: `Max duration is ${MAX_DURATION} years` }),
 });
 
@@ -49,6 +49,7 @@ interface EmiCalculatorFormProps {
   isLoadingRates: boolean;
   baseCurrency: string;
   displayEmiBase: number | null;
+  defaultValues?: Partial<EmiFormValues>;
 }
 
 export function EmiCalculatorForm({
@@ -58,14 +59,15 @@ export function EmiCalculatorForm({
   exchangeRates,
   isLoadingRates,
   baseCurrency,
-  displayEmiBase
+  displayEmiBase,
+  defaultValues
 }: EmiCalculatorFormProps) {
 
   const { toast } = useToast();
 
   const form = useForm<EmiFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: defaultValues || {
       principal: 100000,
       annualRate: 7.5,
       durationYears: 5,
@@ -73,7 +75,7 @@ export function EmiCalculatorForm({
     mode: "onChange",
   });
 
-  const { watch, setValue, getValues, trigger } = form;
+  const { watch, setValue, trigger, formState: { isValid } } = form;
   const principalBase = watch("principal");
 
 
@@ -284,8 +286,8 @@ export function EmiCalculatorForm({
                 </FormItem>
               )}
             />
-             <Button type="submit" className="w-full" disabled={isLoadingRates || !exchangeRates || !form.formState.isValid}>
-                Calculate EMI
+             <Button type="submit" className="w-full" disabled={isLoadingRates || !exchangeRates || !isValid}>
+                <Calculator className="mr-2 h-4 w-4" /> Calculate EMI
              </Button>
 
           </form>
@@ -300,8 +302,11 @@ export function EmiCalculatorForm({
                  {!isLoadingRates && exchangeRates && !exchangeRates[selectedCurrency] && selectedCurrency !== baseCurrency && (
                    <p className="text-xs text-destructive">Rate for {selectedCurrency} unavailable</p>
                  )}
-                  {displayEmiBase === null && !isLoadingRates && exchangeRates && (
-                    <p className="text-xs text-muted-foreground mt-1">Enter details and click Calculate.</p>
+                  {displayEmiBase === null && !isLoadingRates && exchangeRates && isValid && (
+                    <p className="text-xs text-muted-foreground mt-1">Click Calculate to see EMI.</p>
+                 )}
+                 {displayEmiBase === null && !isLoadingRates && exchangeRates && !isValid && (
+                     <p className="text-xs text-muted-foreground mt-1">Enter valid details above.</p>
                  )}
             </div>
         </CardFooter>

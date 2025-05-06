@@ -56,6 +56,11 @@ export function convertAndFormatCurrency(
     }
 
   const convertedAmount = convertCurrencyValue(amount, targetCurrency, rates, baseCurrency);
+
+  if(isNaN(convertedAmount)) {
+       return formatCurrency(NaN, baseCurrency);
+  }
+
   return formatCurrency(convertedAmount, targetCurrency);
 }
 

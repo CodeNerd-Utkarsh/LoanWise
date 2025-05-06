@@ -1,4 +1,5 @@
 
+
 export interface AmortizationEntry {
   month: number;
   principalPayment: number;
@@ -20,7 +21,6 @@ export function calculateEMI(principal: number, annualRate: number, durationMont
 
   const monthlyRate = annualRate / 12 / 100;
    if (!isFinite(Math.pow(1 + monthlyRate, durationMonths))) {
-       console.warn("Calculation involves potentially non-finite numbers. Check input ranges.");
        return NaN;
    }
 
@@ -28,14 +28,12 @@ export function calculateEMI(principal: number, annualRate: number, durationMont
   const denominator = Math.pow(1 + monthlyRate, durationMonths) - 1;
 
   if (denominator === 0) {
-      console.warn("Denominator is zero in EMI calculation.");
        return NaN;
   }
 
 
   const emi = numerator / denominator;
    if (!isFinite(emi)) {
-        console.warn("EMI calculation resulted in a non-finite number.");
         return NaN;
     }
   return emi;
@@ -49,7 +47,6 @@ export function generateAmortizationSchedule(
 ): AmortizationEntry[] {
   const emi = calculateEMI(principal, annualRate, durationMonths);
    if (isNaN(emi) || !isFinite(emi) || principal <= 0 || !isFinite(principal) || durationMonths <= 0) {
-     console.log("Invalid input for schedule generation:", { principal, annualRate, durationMonths, emi });
     return [];
   }
 
@@ -76,11 +73,9 @@ export function generateAmortizationSchedule(
         currentTotalPayment = principalPayment + interestPayment;
         remainingBalance = 0;
 
-
     } else {
          remainingBalance -= principalPayment;
           if (remainingBalance < -0.01) {
-             console.warn(`Negative balance detected month ${month}: ${remainingBalance}. Adjusting.`);
              principalPayment = remainingBalance + principalPayment;
              currentTotalPayment = principalPayment + interestPayment;
              remainingBalance = 0;
@@ -101,7 +96,6 @@ export function generateAmortizationSchedule(
        totalPayment: currentTotalPayment,
        remainingBalance: remainingBalance,
      });
-
 
        if (remainingBalance < -1) {
             console.error(`Significant negative balance error in month ${month}. Stopping.`);
