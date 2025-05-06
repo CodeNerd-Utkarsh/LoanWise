@@ -38,6 +38,11 @@ next-env.d.ts
 
 # project IDX config
 .idx/*
-!/.idx/dev.nix
-!/.idx/firebase.json
-!/.idx/settings.json
+# !/.idx/dev.nix
+# !/.idx/firebase.json
+# !/.idx/settings.json
+
+# /.idx
+/.vscode
+
+.modified
