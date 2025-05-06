@@ -23,7 +23,7 @@ interface ExchangeRates {
 }
 
 export default function Home() {
-  const [emi, setEmi] = useState<number | null>(null); // EMI in base currency (USD)
+  const [emi, setEmi] = useState<number | null>(null); // EMI in base currency (USD) - Last calculated
   const [schedule, setSchedule] = useState<AmortizationEntry[]>([]);
   const [currentFormData, setCurrentFormData] = useState<FormData | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('USD');
@@ -68,8 +68,8 @@ export default function Home() {
     fetchRates();
   }, []);
 
-  // Callback function passed to the form
-  const handleCalculation = useCallback((calculatedEmi: number, _schedule: AmortizationEntry[], formData: FormData) => {
+  // Callback function passed to the form on successful submission
+  const handleCalculation = useCallback((calculatedEmi: number, formData: FormData) => {
     // calculatedEmi is in base currency (USD)
     // Generate schedule using base currency values
     const newSchedule = generateAmortizationSchedule(
@@ -78,7 +78,7 @@ export default function Home() {
         formData.durationYears * 12
     );
 
-    setEmi(calculatedEmi); // Store EMI in base currency
+    setEmi(calculatedEmi); // Store last calculated EMI in base currency
     setSchedule(newSchedule); // Schedule has base currency values
     setCurrentFormData(formData);
 
@@ -111,6 +111,7 @@ export default function Home() {
           exchangeRates={exchangeRates}
           isLoadingRates={isLoadingRates}
           baseCurrency="USD"
+          displayEmiBase={emi} // Pass the last calculated base EMI for display
         />
       <AmortizationTable
           schedule={schedule}

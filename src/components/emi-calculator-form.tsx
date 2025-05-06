@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
-import { Button } from "@/components/ui/button"; // Keep Button if needed elsewhere, though currently unused for submit
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -22,6 +22,7 @@ import { calculateEMI, type AmortizationEntry } from "@/lib/emi-calculator";
 import { Calculator, IndianRupee, DollarSign, Euro, PoundSterling } from "lucide-react"; // Removed Yen
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { convertCurrencyValue, formatCurrency, supportedCurrencies, convertAndFormatCurrency } from "@/lib/currency-utils"; // Import new utils
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 // Define structure for exchange rates
 interface ExchangeRates {
@@ -44,12 +45,13 @@ const formSchema = z.object({
 type EmiFormValues = z.infer<typeof formSchema>;
 
 interface EmiCalculatorFormProps {
-  onCalculate: (emi: number, schedule: AmortizationEntry[], formData: EmiFormValues) => void;
+  onCalculate: (emi: number, formData: EmiFormValues) => void; // Simplified callback
   selectedCurrency: string;
   setSelectedCurrency: (currency: string) => void;
   exchangeRates: ExchangeRates | null;
   isLoadingRates: boolean;
   baseCurrency: string;
+  displayEmiBase: number | null; // Prop to receive the last calculated base EMI
 }
 
 export function EmiCalculatorForm({
@@ -58,8 +60,11 @@ export function EmiCalculatorForm({
   setSelectedCurrency,
   exchangeRates,
   isLoadingRates,
-  baseCurrency
+  baseCurrency,
+  displayEmiBase // Receive the last calculated base EMI
 }: EmiCalculatorFormProps) {
+
+  const { toast } = useToast(); // Initialize toast
 
   const form = useForm<EmiFormValues>({
     resolver: zodResolver(formSchema),
@@ -73,8 +78,7 @@ export function EmiCalculatorForm({
 
   const { watch, setValue, getValues, trigger } = form;
   const principalBase = watch("principal"); // Always in base currency (USD)
-  const annualRate = watch("annualRate");
-  const durationYears = watch("durationYears");
+
 
    // Function to get the appropriate currency icon
    const getCurrencyIcon = (currencyCode: string) => {
@@ -83,7 +87,6 @@ export function EmiCalculatorForm({
       case 'INR': return <IndianRupee className="h-4 w-4 inline mr-1" />;
       case 'EUR': return <Euro className="h-4 w-4 inline mr-1" />;
       case 'GBP': return <PoundSterling className="h-4 w-4 inline mr-1" />;
-      // case 'JPY': return <Yen className="h-4 w-4 inline mr-1" />; // Removed Yen case
       default: return <span className="mr-1">{currencyCode}</span>; // Fallback to code
     }
   };
@@ -98,57 +101,35 @@ export function EmiCalculatorForm({
     return convertCurrencyValue(MAX_PRINCIPAL_USD, selectedCurrency, exchangeRates, baseCurrency);
   }, [selectedCurrency, exchangeRates, baseCurrency]);
 
-
-   // Calculated EMI in BASE currency (USD)
-   const calculatedEmiBase = useMemo(() => {
-      const values = getValues();
-      const result = formSchema.safeParse(values); // Validation uses base currency schema
-      if (result.success) {
-        return calculateEMI(result.data.principal, result.data.annualRate, result.data.durationYears * 12);
-      }
-      return NaN;
-    }, [principalBase, annualRate, durationYears, getValues]); // Depends on base values
-
-    // Calculated EMI formatted in SELECTED currency
-    const calculatedEmiFormatted = useMemo(() => {
-        return convertAndFormatCurrency(calculatedEmiBase, selectedCurrency, exchangeRates, baseCurrency);
-    }, [calculatedEmiBase, selectedCurrency, exchangeRates, baseCurrency]);
+   // Format the DISPLAYED EMI (passed from parent) in SELECTED currency
+   const calculatedEmiFormatted = useMemo(() => {
+       return convertAndFormatCurrency(displayEmiBase, selectedCurrency, exchangeRates, baseCurrency);
+   }, [displayEmiBase, selectedCurrency, exchangeRates, baseCurrency]);
 
 
   const onSubmit = (data: EmiFormValues) => {
-    // Data is already in base currency (USD) due to form structure
+    // Data is already validated and in base currency (USD) due to form structure
      const emiBase = calculateEMI(data.principal, data.annualRate, data.durationYears * 12);
-     if (!isNaN(emiBase)) {
+     if (!isNaN(emiBase) && isFinite(emiBase)) {
        // Trigger parent callback with base currency EMI and form data
-       onCalculate(emiBase, [], data); // Schedule generation happens in parent
+       onCalculate(emiBase, data); // Schedule generation happens in parent
+       toast({ // Add success toast
+         title: "Calculation Successful",
+         description: `EMI calculated: ${convertAndFormatCurrency(emiBase, selectedCurrency, exchangeRates, baseCurrency)}`,
+       });
      } else {
         console.error("EMI Calculation failed with data:", data);
-       // Handle error state
+        toast({ // Add error toast
+           variant: "destructive",
+           title: "Calculation Error",
+           description: "Could not calculate EMI. Please check your inputs.",
+         });
+       // Handle error state - maybe clear displayEmiBase in parent? Or show error in footer?
+       // For now, just log and show toast. The footer will show "N/A".
      }
   };
 
-   // Recalculate and trigger parent callback on form value changes
-   useEffect(() => {
-       const subscription = watch((values, { name, type }) => {
-           // values are potentially partially updated, use getValues for full state
-           const currentValues = getValues();
-           const result = formSchema.safeParse(currentValues); // Validate base currency values
-           if (result.success) {
-               const emiBase = calculateEMI(result.data.principal, result.data.annualRate, result.data.durationYears * 12);
-                if (!isNaN(emiBase)) {
-                    // Pass base EMI and base form data
-                    onCalculate(emiBase, [], result.data);
-                }
-           } else {
-               // If validation fails, perhaps clear the results or show an indicator
-               // console.log("Form validation failed:", result.error);
-               // Optionally, clear dependent calculations if inputs are invalid
-               // onCalculate(NaN, [], currentValues); // Indicate invalid state
-           }
-       });
-       return () => subscription.unsubscribe();
-   }, [watch, onCalculate, formSchema, getValues]); // Add getValues
-
+   // Removed the useEffect that triggered calculations on every change
 
   // Handle principal input change - convert displayed value back to base currency
   const handlePrincipalChange = (value: number | string) => {
@@ -156,13 +137,12 @@ export function EmiCalculatorForm({
       if (!isNaN(numericValue) && exchangeRates && selectedCurrency !== baseCurrency) {
         const baseRate = exchangeRates[baseCurrency]; // Should be 1 if base is USD
         const selectedRate = exchangeRates[selectedCurrency];
-        if (baseRate && selectedRate) {
+        if (baseRate && selectedRate && selectedRate !== 0) { // Avoid division by zero
             const principalInBase = (numericValue / selectedRate) * baseRate;
             setValue("principal", principalInBase, { shouldValidate: true });
         } else {
-             console.warn("Could not find rates for conversion back to base currency.");
-             // Handle error or set explicitly to NaN / invalid state if necessary
-              setValue("principal", NaN, { shouldValidate: true }); // Or handle differently
+             console.warn("Could not find rates for conversion back to base currency or rate is zero.");
+              setValue("principal", NaN, { shouldValidate: true });
         }
       } else if (!isNaN(numericValue) && selectedCurrency === baseCurrency) {
          setValue("principal", numericValue, { shouldValidate: true });
@@ -212,9 +192,8 @@ export function EmiCalculatorForm({
        </CardHeader>
        <CardContent>
         <Form {...form}>
-          {/* Use onSubmit if you want a dedicated calculate button, otherwise onChange handles it */}
-          {/* <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6"> */}
-          <form className="space-y-6">
+          {/* Use onSubmit for the form submission */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Principal Amount */}
             <FormField
               control={form.control}
@@ -233,7 +212,7 @@ export function EmiCalculatorForm({
                        min={convertCurrencyValue(1000, baseCurrency, exchangeRates, baseCurrency)} // Min in base currency
                        max={MAX_PRINCIPAL_USD} // Max in base currency
                        step={convertCurrencyValue(1000, baseCurrency, exchangeRates, baseCurrency)} // Step in base currency
-                       value={[field.value]} // Use base value for slider
+                       value={isNaN(field.value) ? [0] : [field.value]} // Use base value for slider, handle NaN
                        onValueChange={handlePrincipalSliderChange} // Update base value
                        className="flex-grow"
                        disabled={isLoadingRates || !exchangeRates}
@@ -272,7 +251,7 @@ export function EmiCalculatorForm({
                         min={0.1}
                         max={MAX_RATE}
                         step={0.1}
-                        value={[field.value]}
+                        value={isNaN(field.value) ? [0] : [field.value]} // Handle NaN
                          onValueChange={(value) => field.onChange(value[0])}
                          className="flex-grow"
                       />
@@ -280,6 +259,7 @@ export function EmiCalculatorForm({
                          type="number"
                          step="0.1"
                          {...field}
+                         value={isNaN(field.value) ? '' : field.value} // Handle NaN for input display
                          onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                           className="w-32"
                        />
@@ -306,7 +286,7 @@ export function EmiCalculatorForm({
                             min={1}
                             max={MAX_DURATION}
                             step={1}
-                            value={[field.value]}
+                            value={isNaN(field.value) ? [0] : [field.value]} // Handle NaN
                             onValueChange={(value) => field.onChange(value[0])}
                             className="flex-grow"
                           />
@@ -314,6 +294,7 @@ export function EmiCalculatorForm({
                              type="number"
                              step="1"
                              {...field}
+                             value={isNaN(field.value) ? '' : field.value} // Handle NaN for input display
                              onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}
                              className="w-32"
                            />
@@ -323,6 +304,10 @@ export function EmiCalculatorForm({
                 </FormItem>
               )}
             />
+             {/* Calculate Button */}
+             <Button type="submit" className="w-full" disabled={isLoadingRates || !exchangeRates || !form.formState.isValid}>
+                Calculate EMI
+             </Button>
 
           </form>
          </Form>
@@ -330,12 +315,16 @@ export function EmiCalculatorForm({
         <CardFooter className="flex justify-center p-6 bg-secondary/50 rounded-b-lg">
             <div className="text-center">
                 <p className="text-muted-foreground text-sm mb-1">Monthly EMI ({getCurrencyIcon(selectedCurrency)})</p>
-                {/* Display EMI formatted in SELECTED currency */}
+                {/* Display EMI formatted in SELECTED currency - Uses the prop passed from parent */}
                  <p className="text-3xl font-bold text-primary">{calculatedEmiFormatted}</p>
                  {isLoadingRates && <p className="text-xs text-muted-foreground">Loading rates...</p>}
                  {!isLoadingRates && !exchangeRates && <p className="text-xs text-destructive">Could not load rates</p>}
                  {!isLoadingRates && exchangeRates && !exchangeRates[selectedCurrency] && selectedCurrency !== baseCurrency && (
                    <p className="text-xs text-destructive">Rate for {selectedCurrency} unavailable</p>
+                 )}
+                 {/* Show placeholder if no EMI is calculated yet */}
+                  {displayEmiBase === null && !isLoadingRates && exchangeRates && (
+                    <p className="text-xs text-muted-foreground mt-1">Enter details and click Calculate.</p>
                  )}
             </div>
         </CardFooter>
