@@ -39,7 +39,8 @@ export default function Home() {
       // The API key is expected to be in the environment variable NEXT_PUBLIC_EXCHANGE_RATE_API_KEY
       const apiKey = process.env.NEXT_PUBLIC_EXCHANGE_RATE_API_KEY;
       if (!apiKey) {
-          setErrorRates("API key for exchange rates is missing. Please set NEXT_PUBLIC_EXCHANGE_RATE_API_KEY in your environment.");
+          // Updated error message to guide the user
+          setErrorRates("API key for exchange rates is missing. Please create a `.env.local` file in the project root and add the line: NEXT_PUBLIC_EXCHANGE_RATE_API_KEY=your_api_key");
           setIsLoadingRates(false);
           return;
       }
@@ -89,7 +90,7 @@ export default function Home() {
        {errorRates && (
           <Alert variant="destructive" className="w-full max-w-lg mx-auto">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error Loading Rates</AlertTitle>
+            <AlertTitle>Configuration Error</AlertTitle>
             <AlertDescription>{errorRates}</AlertDescription>
           </Alert>
         )}
