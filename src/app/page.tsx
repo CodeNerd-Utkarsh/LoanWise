@@ -36,17 +36,19 @@ export default function Home() {
     const fetchRates = async () => {
       setIsLoadingRates(true);
       setErrorRates(null);
+      // The API key is expected to be in the environment variable NEXT_PUBLIC_EXCHANGE_RATE_API_KEY
       const apiKey = process.env.NEXT_PUBLIC_EXCHANGE_RATE_API_KEY;
       if (!apiKey) {
-          setErrorRates("API key for exchange rates is missing.");
+          setErrorRates("API key for exchange rates is missing. Please set NEXT_PUBLIC_EXCHANGE_RATE_API_KEY in your environment.");
           setIsLoadingRates(false);
           return;
       }
       try {
-        // Fetch rates relative to USD
+        // Fetch rates relative to USD using the API key from the environment
         const response = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/latest/USD`);
         if (!response.ok) {
-          throw new Error(`Failed to fetch exchange rates: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({})); // Try to parse error response
+           throw new Error(`Failed to fetch exchange rates: ${response.status} ${response.statusText} - ${errorData['error-type'] || 'Unknown API Error'}`);
         }
         const data = await response.json();
         if (data.result === 'error') {
@@ -87,7 +89,7 @@ export default function Home() {
        {errorRates && (
           <Alert variant="destructive" className="w-full max-w-lg mx-auto">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Error Loading Rates</AlertTitle>
             <AlertDescription>{errorRates}</AlertDescription>
           </Alert>
         )}
