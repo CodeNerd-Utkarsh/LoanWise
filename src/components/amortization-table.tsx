@@ -12,17 +12,28 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AmortizationEntry } from "@/lib/emi-calculator";
-import { formatCurrency } from "@/lib/emi-calculator";
-import { ListOrdered } from 'lucide-react';
+import { convertAndFormatCurrency } from "@/lib/currency-utils"; // Use the new util
+import { ListOrdered, Info } from 'lucide-react';
 
+// Define structure for exchange rates
+interface ExchangeRates {
+  [key: string]: number;
+}
 interface AmortizationTableProps {
   schedule: AmortizationEntry[];
+  selectedCurrency: string;
+  exchangeRates: ExchangeRates | null;
+  baseCurrency: string; // e.g., 'USD'
 }
 
-export function AmortizationTable({ schedule }: AmortizationTableProps) {
+export function AmortizationTable({ schedule, selectedCurrency, exchangeRates, baseCurrency }: AmortizationTableProps) {
+   const formatInSelectedCurrency = (amount: number | undefined | null): string => {
+        return convertAndFormatCurrency(amount, selectedCurrency, exchangeRates, baseCurrency);
+    };
+
   if (!schedule || schedule.length === 0) {
     return (
-         <Card className="mt-8 shadow-lg">
+         <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto"> {/* Increased max-width */}
              <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
              </CardHeader>
@@ -33,10 +44,20 @@ export function AmortizationTable({ schedule }: AmortizationTableProps) {
      );
   }
 
+  const isRateAvailable = exchangeRates && exchangeRates[selectedCurrency] !== undefined;
+
   return (
-     <Card className="mt-8 shadow-lg">
+     <Card className="mt-8 shadow-lg w-full max-w-4xl mx-auto"> {/* Increased max-width */}
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
+        <div className="flex justify-between items-center">
+             <CardTitle className="flex items-center gap-2"><ListOrdered className="text-primary" /> Amortization Schedule</CardTitle>
+             {!isRateAvailable && selectedCurrency !== baseCurrency && (
+                 <span className="text-xs text-destructive flex items-center gap-1">
+                     <Info size={14} /> Rate for {selectedCurrency} unavailable. Displaying in {baseCurrency}.
+                 </span>
+             )}
+        </div>
+
       </CardHeader>
       <CardContent>
          <ScrollArea className="h-[400px] w-full rounded-md border">
@@ -44,25 +65,27 @@ export function AmortizationTable({ schedule }: AmortizationTableProps) {
              <TableHeader className="sticky top-0 bg-secondary z-10">
                  <TableRow>
                  <TableHead className="w-[80px]">Month</TableHead>
-                 <TableHead className="text-right">Principal Paid</TableHead>
-                 <TableHead className="text-right">Interest Paid</TableHead>
-                 <TableHead className="text-right">Total Payment</TableHead>
-                 <TableHead className="text-right">Remaining Balance</TableHead>
+                 <TableHead className="text-right">Principal ({selectedCurrency})</TableHead>
+                 <TableHead className="text-right">Interest ({selectedCurrency})</TableHead>
+                 <TableHead className="text-right">Total Payment ({selectedCurrency})</TableHead>
+                 <TableHead className="text-right">Balance ({selectedCurrency})</TableHead>
                  </TableRow>
              </TableHeader>
              <TableBody>
                  {schedule.map((entry) => (
                  <TableRow key={entry.month}>
                      <TableCell className="font-medium">{entry.month}</TableCell>
-                     <TableCell className="text-right">{formatCurrency(entry.principalPayment)}</TableCell>
-                     <TableCell className="text-right">{formatCurrency(entry.interestPayment)}</TableCell>
-                     <TableCell className="text-right">{formatCurrency(entry.totalPayment)}</TableCell>
-                     <TableCell className="text-right">{formatCurrency(entry.remainingBalance)}</TableCell>
+                     {/* Format each value using the conversion utility */}
+                     <TableCell className="text-right">{formatInSelectedCurrency(entry.principalPayment)}</TableCell>
+                     <TableCell className="text-right">{formatInSelectedCurrency(entry.interestPayment)}</TableCell>
+                     <TableCell className="text-right">{formatInSelectedCurrency(entry.totalPayment)}</TableCell>
+                     <TableCell className="text-right">{formatInSelectedCurrency(entry.remainingBalance)}</TableCell>
                  </TableRow>
                  ))}
              </TableBody>
              </Table>
          </ScrollArea>
+         <p className="text-xs text-muted-foreground mt-2 text-center">All values are approximate and based on the selected exchange rate.</p>
        </CardContent>
      </Card>
   );
